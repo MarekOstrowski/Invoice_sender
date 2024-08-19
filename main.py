@@ -2,7 +2,7 @@ import base64
 import requests
 from config import API_KEY
 from request_body import payload
-import pypdf
+import fitz
 import os
 
 
@@ -13,20 +13,21 @@ headers = {"accept": "application/json",
 
 
 orders_list = list(map(lambda x: x.replace(".pdf", ""), os.listdir("./Invoices")))
-# print(orders_list)
 
 for order_number in orders_list:
 
     with open(f"invoices/{order_number}.pdf", "rb") as pdf_file:
-        reader = pypdf.PdfReader(pdf_file)
-        page1 = reader.get_page(0)
-        output_pdf = pypdf.PdfWriter()
-        output_pdf.add_page(page1)
-        output_pdf.write("first_page.pdf")
-        pdf1page = open("first_page.pdf", "rb")
-        encoded_string = base64.b64encode(pdf1page.read())
-        encoded_string = encoded_string.decode("ascii")
-        pdf1page.close()
+        pdf = fitz.open(pdf_file)
+        if len(pdf) > 1:
+            pdf.delete_page(1)
+            pdf.save("output.pdf")
+            output_pdf = open("output.pdf", "rb")
+            encoded_string = base64.b64encode(output_pdf.read())
+            encoded_string = encoded_string.decode("ascii")
+            output_pdf.close()
+        else:
+            print(f"{order_number} is not valid {len(pdf)} page detected")
+            continue
 
     request_data = payload(order_number=order_number, pdfBase64=encoded_string)
     response = requests.post(url, json=request_data, headers=headers)
